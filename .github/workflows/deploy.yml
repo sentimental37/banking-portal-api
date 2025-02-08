@@ -22,6 +22,9 @@ jobs:
     - name: Build with Maven
       run: mvn clean package -DskipTests
 
+    - name: Verify JAR File
+      run: ls -l target/
+
     - name: Set Up OpenShift CLI
       run: |
         curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz
@@ -53,18 +56,27 @@ jobs:
         docker push ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}:latest
         docker push ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}::${{ github.sha }}
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Log in to OpenShift
-      run: |
-        oc login --token=${{ secrets.OPENSHIFT_TOKEN }} --server=${{ secrets.OPENSHIFT_SERVER }}
-        oc project ${{ secrets.OPENSHIFT_PROJECT }}
-
     - name: Deploy to OpenShift
       run: |
-        oc delete dc banking-portal-api --ignore-not-found=true
-        oc new-app ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}:latest --name=banking-portal-api
-        oc expose svc/banking-portal-api
+        oc login --token=${{ secrets.OPENSHIFT_TOKEN }} --server=${{ secrets.OPENSHIFT_SERVER }}
+        oc apply -f deployment.yaml
+
+    - name: Restart Deployment
+      run: |
+        oc rollout restart deployment/banking-portal-api        
+
+  # deploy:
+  #   needs: build
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #   - name: Log in to OpenShift
+  #     run: |
+  #       oc login --token=${{ secrets.OPENSHIFT_TOKEN }} --server=${{ secrets.OPENSHIFT_SERVER }}
+  #       oc project ${{ secrets.OPENSHIFT_PROJECT }}
+
+  #   - name: Deploy to OpenShift
+  #     run: |
+  #       oc delete dc banking-portal-api --ignore-not-found=true
+  #       oc new-app ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}:latest --name=banking-portal-api
+  #       oc expose svc/banking-portal-api
