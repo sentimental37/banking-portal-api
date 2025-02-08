@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banking-portal-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: banking-portal-api
+  template:
+    metadata:
+      labels:
+        app: banking-portal-api
+    spec:
+      containers:
+        - name: banking-portal-api
+          image: default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://mysql:3306/banking_portal?serverTimezone=UTC&useSSL=false
+            - name: SPRING_DATASOURCE_USERNAME
+              value: user
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: banking-portal-api
+spec:
+  ports:
+    - port: 8081
+      targetPort: 8081
+  selector:
+    app: banking-portal-api
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: banking-portal-api
+spec:
+  to:
+    kind: Service
+    name: banking-portal-api
+  port:
+    targetPort: 8081

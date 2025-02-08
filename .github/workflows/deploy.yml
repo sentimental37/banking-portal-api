@@ -1,0 +1,52 @@
+name: Deploy to OpenShift
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set Up JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Build with Maven
+      run: mvn clean package -DskipTests
+
+    - name: Log in to Internal Registry
+      run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com -u ${{ secrets.REGISTRY_USERNAME }} --password-stdin
+
+    - name: Build and Tag Docker Image
+      run: |
+        docker build -t default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:latest .
+        docker tag default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:latest default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:${{ github.sha }}
+
+    - name: Push Docker Image
+      run: |
+        docker push default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:latest
+        docker push default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Log in to OpenShift
+      run: |
+        oc login ${{ secrets.OPENSHIFT_SERVER }} --token=${{ secrets.OPENSHIFT_TOKEN }} --insecure-skip-tls-verify
+        oc project banking-portal
+
+    - name: Deploy to OpenShift
+      run: |
+        oc delete dc banking-portal-api --ignore-not-found=true
+        oc new-app default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:latest --name=banking-portal-api
+        oc expose svc/banking-portal-api
