@@ -54,7 +54,7 @@ jobs:
 
         echo "Pushing Docker image to OpenShift registry..."
         docker push ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}:latest
-        docker push ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}::${{ github.sha }}
+        docker push ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}:${{ github.sha }}
 
     - name: Deploy to OpenShift
       run: |
