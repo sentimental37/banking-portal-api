@@ -22,18 +22,36 @@ jobs:
     - name: Build with Maven
       run: mvn clean package -DskipTests
 
-    - name: Log in to Internal Registry
-      run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com -u ${{ secrets.REGISTRY_USERNAME }} --password-stdin
-
-    - name: Build and Tag Docker Image
+    - name: Set Up OpenShift CLI
       run: |
-        docker build -t default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:latest .
-        docker tag default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:latest default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:${{ github.sha }}
+        curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz
+        tar -xzf oc.tar.gz
+        chmod +x oc
+        sudo mv oc /usr/local/bin/
+        oc version
 
-    - name: Push Docker Image
+    - name: Login to OpenShift
       run: |
-        docker push default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:latest
-        docker push default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:${{ github.sha }}
+        oc login --token=${{ secrets.OPENSHIFT_TOKEN }} --server=${{ secrets.OPENSHIFT_SERVER }}
+        oc project ${{ secrets.OPENSHIFT_PROJECT }}
+
+    - name: Login to OpenShift Container Registry
+      run: |
+        echo "Logging into OpenShift internal registry..."
+        docker login -u ${{ secrets.REGISTRY_USER }} -p $(oc whoami -t) ${{ secrets.OPENSHIFT_REGISTRY }}
+
+    - name: Build & Push Docker Image
+      run: |
+        echo "Building Docker image..."
+        docker build -t ${{ secrets.IMAGE_NAME }} .
+        
+        echo "Tagging Docker image..."
+        docker tag ${{ secrets.IMAGE_NAME }} ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}:latest
+        docker tag ${{ secrets.IMAGE_NAME }} ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}:${{ github.sha }}    
+
+        echo "Pushing Docker image to OpenShift registry..."
+        docker push ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}:latest
+        docker push ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}::${{ github.sha }}
 
   deploy:
     needs: build
@@ -42,11 +60,11 @@ jobs:
     steps:
     - name: Log in to OpenShift
       run: |
-        oc login ${{ secrets.OPENSHIFT_SERVER }} --token=${{ secrets.OPENSHIFT_TOKEN }} --insecure-skip-tls-verify
-        oc project banking-portal
+        oc login --token=${{ secrets.OPENSHIFT_TOKEN }} --server=${{ secrets.OPENSHIFT_SERVER }}
+        oc project ${{ secrets.OPENSHIFT_PROJECT }}
 
     - name: Deploy to OpenShift
       run: |
         oc delete dc banking-portal-api --ignore-not-found=true
-        oc new-app default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:latest --name=banking-portal-api
+        oc new-app ${{ secrets.OPENSHIFT_REGISTRY }}/${{ secrets.OPENSHIFT_PROJECT }}/${{ secrets.IMAGE_NAME }}:latest --name=banking-portal-api
         oc expose svc/banking-portal-api
