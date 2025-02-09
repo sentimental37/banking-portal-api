@@ -140,6 +140,7 @@ public class UserServiceImpl implements UserService {
     }
 
     private User authenticateUser(LoginRequest loginRequest) {
+        log.info("Authenticating user with identifier: {}", loginRequest.identifier());
         val user = getUserByIdentifier(loginRequest.identifier());
         val accountNumber = user.getAccount().getAccountNumber();
         authenticationManager
