@@ -4,9 +4,9 @@ metadata:
   name: mysql-secret
 type: Opaque
 data:
-  mysql-root-password: cGFzc3dvcmQ=   # "password" base64 encoded
-  mysql-user: dXNlcg==               # "user" base64 encoded
-  mysql-password: cGFzc3dvcmQ=        # "password" base64 encoded
+  mysql-root-password: password   # "password" base64 encoded
+  mysql-user: banking              # "user" base64 encoded
+  mysql-password: password        # "password" base64 encoded
 
 ---
 apiVersion: apps/v1
