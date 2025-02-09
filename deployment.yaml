@@ -46,6 +46,8 @@ spec:
                 secretKeyRef:
                   name: mysql-secret
                   key: mysql-password
+            - name: MYSQL_DEFAULT_AUTHENTICATION_PLUGIN
+              value: "mysql_native_password"
           volumeMounts:
             - name: mysql-pv-storage
               mountPath: /var/lib/mysql
