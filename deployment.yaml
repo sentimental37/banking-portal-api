@@ -86,6 +86,24 @@ spec:
           image: default-route-openshift-image-registry.apps.rm2.thpm.p1.openshiftapps.com/sentimental37-dev/banking-portal-api:latest
           ports:
             - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://mysql:3306/banking_portal?serverTimezone=UTC&useSSL=false
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-user
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-password
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: update
+            - name: SPRING_JPA_DATABASE_PLATFORM
+              value: org.hibernate.dialect.MySQL8Dialect
+
 ---
 apiVersion: v1
 kind: Service
